@@ -1,47 +1,89 @@
-#include <Button.h>
-#include <SoftwareSerial.h>    // import the serial library
+/*
+ * 
+ * Contributers:  Mustafa Hammood   mustafa.sh@alumni.ubc.ca
+ * 
+ * Revision;      22 Nov 2016
+ * 
+ * Bugs:          None
+ * 
+ * Add:           Sliding control for SoftPot
+ * 
+ */
 
+#include <Button.h>             // improved button by Andrew Mascolo 
+#include <SoftwareSerial.h>     // Serial library to initiate Bluetooth comm protocol
+
+
+// delay in between SoftPot pin ADC measurements (in milliseconds)
 #define SOFTPOT_DELAY 50.0
 
 
+// Bluetooth protocol defines
+SoftwareSerial Genotronex(10, 11);    // RX, TX
+int BluetoothData;                    // the data given from Computer
+int ledpin=13;                        // Red LED on pin D13 for debugging --REMOVE
 
-SoftwareSerial Genotronex(10, 11);  // RX, TX
-int BluetoothData;      // the data given from Computer
-int ledpin=13;        // led on D13 will show blink on / off
 
+// LOW = milliseconds, HIGH = microseconds, default is LOW
 Button B(LOW);
 
+// Interface buttons
 int UpButtonPin = A5;
 int DownButtonPin = A3;
 
+// Analog signal filtered by an RC filter (0-5V) to drive LED bar intensity signal
 int LEDdriver = 3;
+
+
+// Analog signal filtered by an RC filter (0-5V) to drive LED bar intensity level
 int intensity;
++
+// Analog signal filtered by an RC filter (0-5V) to drive power module intensity signal
+int intensityPower;
 
-int SoftPotPin = A4;
-int SoftPotVal;
-int SoftPotValPrev;
-int SoftPotValPrevPrev;
-float SoftPotSlope1;
-float SoftPotSlope2;
+// SoftPot Sensor logic
+int SoftPotPin = A4;        // Bias input put (Analog 4)
+int SoftPotVal;             // First ADC reading 
+int SoftPotValPrev;         // Second ADC reading
+int SoftPotValPrevPrev;     // Third ADC reading
+float SoftPotSlope1;        // Slope between First and Second ADC reading (SOFTPOT_DELAY interval between the readings)
+float SoftPotSlope2;        // Slope between Second and Third ADC reading (SOFTPOT_DELAY interval between the readings)
 
-void rampUp( void );
-void rampDown( void );
-void ButtonsLogic( void );
-void SoftPotLogic( void );
+
+// LED bar driving functionalities
+void flipLevelLED( void );  // Check if LED bar is at 100% or 0% and flip its level
+void rampUp( void );        // Ramp up the LED bar intensity from 0% to 100%
+void rampDown( void );      // Ramp down the LED bar intensity from 100% to 0%
+
+
+// Interface control and sensing logic
+void ButtonsLogic( void );  // Read buttons logic and control intensity
+void SoftPotLogic( void );  // Read SoftPot logic and control intensity\
+
+// Bluetooth communication control
 void BluetoothLogic( void );
 
 // the setup function runs once when you press reset or power the board
 void setup() {
+
+  // Intiate Bluetooth comm protocol (MCU-Bluetooth-MCU)
   Genotronex.begin(9600);
-  Genotronex.println("Bluetooth On please press 1 or 0 blink LED..");
+  Genotronex.println("Bluetooth, input 1 or 0 to control Debug LED and intensity");
+
+  // Define debug LED pin as output --REMOVE
   pinMode(ledpin,OUTPUT);
-  
+
+
+  // Initiate serial comm protocol (MCU-PC)
   Serial.begin(115200);
 
+  // Define output and input pins
   pinMode(LEDdriver, OUTPUT);
   pinMode(UpButtonPin, INPUT_PULLUP);
   pinMode(DownButtonPin, INPUT_PULLUP);
 
+  // Set what the button will be when pressed (default is HIGH)
+  // and set the hold time (default is 500)
   B.SetStateAndTime(LOW, 100);
 }
 
@@ -186,18 +228,7 @@ void SoftPotLogicOkayish( void )
   
   if( ( SoftPotSlope1 >= 0.02  || SoftPotSlope2 >= 0.02 ) && SoftPotValPrevPrev == 0 )
   {
-
-    if( intensity == 100 )
-    {
-      rampDown();
-      intensity = 0;
-    }
-    else
-    {
-      rampUp();
-      intensity = 100;
-    }
-    
+    flipLevelLED();
   }
 
   Serial.print("SoftPotValPrevPrev: ");
@@ -230,16 +261,7 @@ void ButtonsLogic( void )
     {
       case PRESSED:
         Serial.print("ButtonUp was Pressed ");
-        if( intensity == 100 )
-        {
-          rampDown();
-          intensity = 0;
-        }
-        else
-        {
-          rampUp();
-          intensity = 100;
-        }
+        flipLevelLED();
         break;
         
       case HELD:
@@ -260,16 +282,7 @@ void ButtonsLogic( void )
     {
       case PRESSED:
         Serial.print("ButtonDown was Pressed ");
-        if( intensity == 100 )
-        {
-          rampDown();
-          intensity = 0;
-        }
-        else
-        {
-          rampUp();
-          intensity = 100;
-        }
+        flipLevelLED();
         break;
       case HELD:
         Serial.print("ButtonDown is Held:");
@@ -313,17 +326,17 @@ void rampDown( void )
   
 }
 
+void flipLevelLED( void )
+{
+  if( intensity == 100 )
+  {
+    rampDown();
+    intensity = 0;
+  }
+  else
+  {
+    rampUp();
+    intensity = 100;
+  }
+}
 
-
-/*
-        if( intensity == 100 )
-        {
-          rampDown();
-          intensity = 0;
-        }
-        else
-        {
-          rampUp();
-          intensity = 100;
-        }
-*/
