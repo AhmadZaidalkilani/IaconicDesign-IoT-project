@@ -14,9 +14,11 @@
 #include <SoftwareSerial.h>     // Serial library to initiate Bluetooth comm protocol
 
 
-// delay in between SoftPot pin ADC measurements (in milliseconds)
+// Delay in between SoftPot pin ADC measurements (milliseconds)
 #define SOFTPOT_DELAY 50.0
 
+// Duration of backlight LEDs after detecting motion (milliseconds)
+#define BACKLIGHT_TIME 5000.0
 
 // Bluetooth protocol defines
 SoftwareSerial Genotronex(10, 11);    // RX, TX
@@ -35,9 +37,17 @@ int DownButtonPin = A3;
 int LEDdriver = 3;
 
 
+// Sensors
+int MotionSensorPin = A2;
+int MotionSensor;
+
+// Backlight LED Logic
+int BackLightON;
+unsigned long BackLightTimer;
+
 // Analog signal filtered by an RC filter (0-5V) to drive LED bar intensity level
 int intensity;
-+
+
 // Analog signal filtered by an RC filter (0-5V) to drive power module intensity signal
 int intensityPower;
 
@@ -63,6 +73,10 @@ void SoftPotLogic( void );  // Read SoftPot logic and control intensity\
 // Bluetooth communication control
 void BluetoothLogic( void );
 
+// Backlight LEDs logic
+
+void BacklightLogic( void );
+
 // the setup function runs once when you press reset or power the board
 void setup() {
 
@@ -78,10 +92,11 @@ void setup() {
   Serial.begin(115200);
 
   // Define output and input pins
-  pinMode(LEDdriver, OUTPUT);
+  pinMode(LEDdriver, OUTPUT);               // Control LED driver IC (analog output to RC filter)
   pinMode(UpButtonPin, INPUT_PULLUP);
   pinMode(DownButtonPin, INPUT_PULLUP);
-
+  pinMode(MotionSensorPin, INPUT);
+  
   // Set what the button will be when pressed (default is HIGH)
   // and set the hold time (default is 500)
   B.SetStateAndTime(LOW, 100);
@@ -90,10 +105,40 @@ void setup() {
 // the loop function runs over and over again forever
 void loop() {
 
+
+  
   BluetoothLogic();
     
   ButtonsLogic();
   SoftPotLogic();
+}
+
+
+void BacklightLogic( void )
+{
+  MotionSensor = analogRead( MotionSensorPin );
+
+  // If signal is low then motion is detected
+  if( MotionSensor < 500 )
+  {
+    digitalWrite(ledpin,1);
+
+    if( BackLightON == 0 )
+      rampUp();
+
+    BackLightTimer = millis();
+    BackLightON = 1;
+  }
+  else
+  {
+    digitalWrite(ledpin,0);
+  
+    if( BackLightON == 1 && millis() >= BackLightTimer+BACKLIGHT_TIME )
+    {
+      BackLightON = 0;
+      rampDown();  
+    }
+  } 
 }
 
 void BluetoothLogic( void )
