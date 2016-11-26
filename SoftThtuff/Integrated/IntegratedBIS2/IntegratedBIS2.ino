@@ -26,6 +26,26 @@ int BluetoothData;                    // the data given from Computer
 int ledpin=13;                        // Red LED on pin D13 for debugging --REMOVE
 
 
+
+
+int UpperVar = 0;
+int LowerVar = 1023;
+int LEDrate = 0;
+int LEDrate1 = 0;
+int incrementer = 0;
+int MeanTing;
+float var1,var2,var3;
+int InitialMeanTing;
+int SoftPotValArray[] = {0,0,0,0,0,0,0,0,0,0};
+boolean SlidingTrigger;
+boolean ThisTrigger = false;
+
+
+
+
+
+
+
 // LOW = milliseconds, HIGH = microseconds, default is LOW
 Button B(LOW);
 
@@ -53,6 +73,7 @@ int intensityPower;
 
 // SoftPot Sensor logic
 int SoftPotPin = A4;        // Bias input put (Analog 4)
+boolean SoftPotToggle = false;
 int SoftPotVal;             // First ADC reading 
 int SoftPotValPrev;         // Second ADC reading
 int SoftPotValPrevPrev;     // Third ADC reading
@@ -69,9 +90,11 @@ void rampDown( void );      // Ramp down the LED bar intensity from 100% to 0%
 // Interface control and sensing logic
 void ButtonsLogic( void );  // Read buttons logic and control intensity
 void SoftPotLogic( void );  // Read SoftPot logic and control intensity\
-
 // Bluetooth communication control
 void BluetoothLogic( void );
+
+// Control power circuit light intensity signal
+void BulbIntensity( void )
 
 // Backlight LEDs logic
 
@@ -104,16 +127,20 @@ void setup() {
 
 // the loop function runs over and over again forever
 void loop() {
-
-
   
   BluetoothLogic();
-    
+
+  //BacklightLogic();
+  
   ButtonsLogic();
   SoftPotLogic();
 }
 
 
+void BulbIntensity( void )
+{
+  
+}
 void BacklightLogic( void )
 {
   MotionSensor = analogRead( MotionSensorPin );
@@ -192,8 +219,123 @@ void SoftPotLogic( void )
   else if( SoftPotVal > 100 )
     analogWrite( LEDdriver, (SoftPotVal-100)/5.6);
   */
-  SoftPotVal = analogRead( SoftPotPin );
+   SoftPotVal = analogRead( SoftPotPin );
+  Serial.print("var1" );
+  Serial.println(var1);
+  Serial.print("var2" );
+  Serial.println(var2);
+  Serial.print("var3" );
+  Serial.println(var3);
+  Serial.print("SoftPotVal" );
+  Serial.println(SoftPotVal);
+  Serial.print("MeanTing");
+  Serial.println(MeanTing);
+  Serial.print("initialMeanTing" );
+  Serial.println(InitialMeanTing );
+  Serial.print("SlidingTrigger");
+  Serial.println(SlidingTrigger);
+  Serial.print("UpperVar");
+  Serial.println(UpperVar);
+  Serial.print("LowerVar");
+  Serial.println(LowerVar);
+  Serial.print("Array");
+  Serial.println(SoftPotValArray[0]);
+  Serial.print("LEDrate");
+  Serial.println(LEDrate);
+  Serial.print("LEDrate1");
+  Serial.println(LEDrate1);
+  Serial.println();  
+  if (ThisTrigger){
+     analogWrite( LEDdriver,  LEDrate1);
+  }
+  if (!ThisTrigger){
+     analogWrite( LEDdriver,  LEDrate);
+  }
 
+    for(int x = 9; x > 0; x--){
+        SoftPotValArray[x] = SoftPotValArray[x-1];
+    }
+    SoftPotValArray[0] = SoftPotVal; 
+    
+  if (SoftPotVal > 1) {
+    ThisTrigger = false;
+    
+    incrementer++;
+
+
+    LowerVar = 1023;
+    UpperVar = 0;
+    for(int i = 0; i < 10; i++){
+      if (SoftPotValArray[i] > UpperVar){
+        UpperVar = SoftPotValArray[i];
+      }
+      if (SoftPotValArray[i] < LowerVar){
+        LowerVar = SoftPotValArray[i];
+      }
+    }
+
+
+    
+    if (incrementer > 9){
+      if (incrementer == 10){
+       InitialMeanTing = (UpperVar + LowerVar)/2;
+    }
+      if (incrementer > 10){
+       MeanTing = (UpperVar + LowerVar)/2;
+       if (MeanTing > InitialMeanTing+10 || MeanTing < InitialMeanTing-10){
+        ThisTrigger = true;
+        SlidingTrigger = true;
+            var1 = MeanTing - InitialMeanTing;
+            var2 = var1*180;
+            var3 = var2/1023;
+            LEDrate1 = (int)LEDrate + var3;  
+
+            if (LEDrate1 > 180) {
+              LEDrate1 = 180;
+            }
+            if (LEDrate1 < 0 ){
+              LEDrate1 = 0;
+            }
+
+        SoftPotToggle = true;
+       }
+       else {
+       SlidingTrigger = false;
+      }
+  } 
+    
+  }
+
+  } else if (SoftPotVal <= 1){
+    UpperVar = 0;
+    LowerVar = 1023;
+    ThisTrigger = false;
+    LEDrate = LEDrate1;
+    InitialMeanTing = 0;
+    MeanTing = 0;
+
+  
+ if (!SlidingTrigger || (incrementer > 0 && incrementer < 9)){
+    ThisTrigger = false;
+    if (SoftPotToggle){
+      LEDrate = 0;
+      LEDrate1 = 0;
+      SoftPotToggle = !SoftPotToggle;
+      SlidingTrigger = true;
+    }
+    else if (!SoftPotToggle){
+      LEDrate = 180;
+      LEDrate1 = 180;
+      SoftPotToggle = !SoftPotToggle;
+      SlidingTrigger = true;
+    }
+   }
+       incrementer = 0;
+  }
+
+
+
+  /*Serial.println(SoftPotVal);
   if( SoftPotVal != 0 )
   {
     SoftPotValPrev = SoftPotVal;
@@ -203,53 +345,21 @@ void SoftPotLogic( void )
     SoftPotSlope1 = ( SoftPotVal - SoftPotValPrev ) / SOFTPOT_DELAY;
 
     // User could have possibly on pressed or sliding down
-    if( SoftPotSlope1 < -0.2 )
-    {
-      
-      // If current reading is zero, user must've only pressed
-      if( SoftPotVal == 0 )
-      {
-        if( intensity == 100 )
-        {
-          rampDown();
-          intensity = 0;
-        }
-        else
-        {
-          rampUp();
-          intensity = 100;
-        }
+    if( abs(SoftPotSlope1) > 0.2 ){
+      if (!SoftPotToggle){
+         rampUp();
+         SoftPotToggle = !SoftPotToggle;
       }
-          
-    }
-    else if( SoftPotSlope1 > 0.2 )
-    {
+      else{
+        rampDown();
+         SoftPotToggle = !SoftPotToggle;
+      }
+
       
     }
-   else
-   {
-    SoftPotValPrev = 0;
-    SoftPotValPrevPrev = 0;
-   }
-    
-  }
-  
-  Serial.print("SoftPotValPrevPrev: ");
-  Serial.println( SoftPotValPrevPrev );
-
-  Serial.print("SoftPotValPrev: ");
-  Serial.println( SoftPotValPrev );
-
-  Serial.print("SoftPotVal: ");
-  Serial.println( SoftPotVal );
-
-  Serial.print("Slope1: ");
-  Serial.println( SoftPotSlope1);
-
-  Serial.print("Slope2: ");
-  Serial.println( SoftPotSlope2);
+   
+}*/
 }
-
 
 void SoftPotLogicOkayish( void )
 {
@@ -367,6 +477,7 @@ void rampDown( void )
     analogWrite( LEDdriver, rate );
     rate--;
     delay(rampDelay);
+    Serial.println( "tss" );
   }
   
 }
