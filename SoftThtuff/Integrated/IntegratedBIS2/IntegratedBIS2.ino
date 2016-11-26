@@ -32,6 +32,7 @@ int UpperVar = 0;
 int LowerVar = 1023;
 int LEDrate = 0;
 int LEDrate1 = 0;
+int trueLEDrate = 0;
 int incrementer = 0;
 int MeanTing;
 float var1,var2,var3;
@@ -70,6 +71,8 @@ int intensity;
 
 // Analog signal filtered by an RC filter (0-5V) to drive power module intensity signal
 int intensityPower;
+int intensityPowerPWM;
+int intensityPowerPin = 2;
 
 // SoftPot Sensor logic
 int SoftPotPin = A4;        // Bias input put (Analog 4)
@@ -79,6 +82,9 @@ int SoftPotValPrev;         // Second ADC reading
 int SoftPotValPrevPrev;     // Third ADC reading
 float SoftPotSlope1;        // Slope between First and Second ADC reading (SOFTPOT_DELAY interval between the readings)
 float SoftPotSlope2;        // Slope between Second and Third ADC reading (SOFTPOT_DELAY interval between the readings)
+
+
+// Power
 
 
 // LED bar driving functionalities
@@ -94,7 +100,7 @@ void SoftPotLogic( void );  // Read SoftPot logic and control intensity\
 void BluetoothLogic( void );
 
 // Control power circuit light intensity signal
-void BulbIntensity( void )
+void BulbIntensity( void );
 
 // Backlight LEDs logic
 
@@ -119,6 +125,7 @@ void setup() {
   pinMode(UpButtonPin, INPUT_PULLUP);
   pinMode(DownButtonPin, INPUT_PULLUP);
   pinMode(MotionSensorPin, INPUT);
+  pinMode(intensityPowerPin, OUTPUT);
   
   // Set what the button will be when pressed (default is HIGH)
   // and set the hold time (default is 500)
@@ -134,13 +141,33 @@ void loop() {
   
   ButtonsLogic();
   SoftPotLogic();
+
+  BulbIntensity();
+
+  Serial.print("LED Rate: ");
+  Serial.println( trueLEDrate );
+
+ 
 }
 
 
 void BulbIntensity( void )
 {
-  
+  intensityPower = map( trueLEDrate, 0, 180, 20, 200 );
+
+  Serial.print("Power rate: ");
+  Serial.println( intensityPower );
+
+  /*
+  intensityPowerPWM = map( intensityPower, 0.2, 0, 2.5, 120 );
+
+  Serial.print("Power rate PWM: ");
+  Serial.println( intensityPowerPWM );
+  */
+
+  analogWrite( 9, intensityPower );
 }
+
 void BacklightLogic( void )
 {
   MotionSensor = analogRead( MotionSensorPin );
@@ -214,42 +241,19 @@ void BluetoothLogic( void )
 // Function to execute the touch sensor functionality (sliding and clicking)
 void SoftPotLogic( void )
 {
-
   /*
   else if( SoftPotVal > 100 )
     analogWrite( LEDdriver, (SoftPotVal-100)/5.6);
   */
    SoftPotVal = analogRead( SoftPotPin );
-  Serial.print("var1" );
-  Serial.println(var1);
-  Serial.print("var2" );
-  Serial.println(var2);
-  Serial.print("var3" );
-  Serial.println(var3);
-  Serial.print("SoftPotVal" );
-  Serial.println(SoftPotVal);
-  Serial.print("MeanTing");
-  Serial.println(MeanTing);
-  Serial.print("initialMeanTing" );
-  Serial.println(InitialMeanTing );
-  Serial.print("SlidingTrigger");
-  Serial.println(SlidingTrigger);
-  Serial.print("UpperVar");
-  Serial.println(UpperVar);
-  Serial.print("LowerVar");
-  Serial.println(LowerVar);
-  Serial.print("Array");
-  Serial.println(SoftPotValArray[0]);
-  Serial.print("LEDrate");
-  Serial.println(LEDrate);
-  Serial.print("LEDrate1");
-  Serial.println(LEDrate1);
-  Serial.println();  
+
   if (ThisTrigger){
      analogWrite( LEDdriver,  LEDrate1);
+     trueLEDrate = LEDrate1;
   }
   if (!ThisTrigger){
      analogWrite( LEDdriver,  LEDrate);
+     trueLEDrate = LEDrate;
   }
 
     for(int x = 9; x > 0; x--){
