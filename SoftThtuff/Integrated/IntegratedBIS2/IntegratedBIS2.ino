@@ -61,6 +61,8 @@ int LEDdriver = 3;
 // Sensors
 int MotionSensorPin = A2;
 int MotionSensor;
+int CurrentSampler = A1;
+
 
 // Backlight LED Logic
 int BackLightON;
@@ -85,7 +87,7 @@ float SoftPotSlope2;        // Slope between Second and Third ADC reading (SOFTP
 
 
 // Power
-
+int InstantCurrent;
 
 // LED bar driving functionalities
 void flipLevelLED( void );  // Check if LED bar is at 100% or 0% and flip its level
@@ -144,8 +146,8 @@ void loop() {
 
   BulbIntensity();
 
-  Serial.print("LED Rate: ");
-  Serial.println( trueLEDrate );
+  /*Serial.print("LED Rate: ");
+  Serial.println( trueLEDrate );*/
 
  
 }
@@ -155,16 +157,19 @@ void BulbIntensity( void )
 {
   intensityPower = map( trueLEDrate, 0, 180, 20, 200 );
 
-  Serial.print("Power rate: ");
-  Serial.println( intensityPower );
+  /*Serial.print("Power rate: ");
+  Serial.println( intensityPower );*/
 
   /*
   intensityPowerPWM = map( intensityPower, 0.2, 0, 2.5, 120 );
-
   Serial.print("Power rate PWM: ");
   Serial.println( intensityPowerPWM );
   */
 
+  InstantCurrent = analogRead(CurrentSampler);
+
+  Serial.print("InstantCurrent" );
+  Serial.println(InstantCurrent);
   analogWrite( 9, intensityPower );
 }
 
@@ -241,12 +246,34 @@ void BluetoothLogic( void )
 // Function to execute the touch sensor functionality (sliding and clicking)
 void SoftPotLogic( void )
 {
-  /*
-  else if( SoftPotVal > 100 )
-    analogWrite( LEDdriver, (SoftPotVal-100)/5.6);
-  */
-   SoftPotVal = analogRead( SoftPotPin );
 
+
+  // command that reads the voltage corresponding to where the user is pressing at that moment in time
+   SoftPotVal = analogRead( SoftPotPin );
+   /*
+  Serial.print("SoftPotVal" );
+  Serial.println(SoftPotVal);
+  Serial.print("MeanTing");
+  Serial.println(MeanTing);
+  Serial.print("initialMeanTing" );
+  Serial.println(InitialMeanTing );
+  Serial.print("SlidingTrigger");
+  Serial.println(SlidingTrigger);
+  Serial.print("UpperVar");
+  Serial.println(UpperVar);
+  Serial.print("LowerVar");
+  Serial.println(LowerVar);
+  Serial.print("Array");
+  Serial.println(SoftPotValArray[0]);
+  Serial.print("LEDrate");
+  Serial.println(LEDrate);
+  Serial.print("LEDrate1");
+  Serial.println(LEDrate1);
+  Serial.println();  */
+
+
+  // these two if statements decide which LEDrate should be used to write to the LED driver (this will make more sense once you
+  // see what's going on in the code later
   if (ThisTrigger){
      analogWrite( LEDdriver,  LEDrate1);
      trueLEDrate = LEDrate1;
@@ -256,19 +283,32 @@ void SoftPotLogic( void )
      trueLEDrate = LEDrate;
   }
 
+  // this for loop basically adds the new sampled SoftPotVal into the array holding the last 10 sampled SoftPotVal values
     for(int x = 9; x > 0; x--){
         SoftPotValArray[x] = SoftPotValArray[x-1];
     }
     SoftPotValArray[0] = SoftPotVal; 
-    
-  if (SoftPotVal > 1) {
+
+
+  // here are a big group of nested if statements.  This is where the core of the logic is.
+  // First the big if statements basically checks if the user is applying pressure to the switch
+  // i.e. if the user is interacting with the switch
+  if (SoftPotVal > 5) {
+
+  // we want ThisTrigger to be turned on only in a specific nested if statements, otherwise it should always
+  // be false, so here we just make sure it's false.
     ThisTrigger = false;
-    
+
+  // This incrementer keeps track of how many loops have passed since the user began interacting with the switch 
     incrementer++;
 
 
+  // reset the values for LowerVar and UpperVar so that their values can be recalculated based on the newly updated array
+  // of 10 samples
     LowerVar = 1023;
     UpperVar = 0;
+
+  // the for loop that does the updating of the 2 variables based on the newly updated array of 10 samples
     for(int i = 0; i < 10; i++){
       if (SoftPotValArray[i] > UpperVar){
         UpperVar = SoftPotValArray[i];
@@ -279,21 +319,40 @@ void SoftPotLogic( void )
     }
 
 
-    
+  // at this point all 10 samples have been collected in the array in order to make sense from an "average"
     if (incrementer > 9){
+
+      // This will be the first calculated average which is a special one, because this average tells us where the user
+      // applied pressure on the switch for the first time or instance
       if (incrementer == 10){
        InitialMeanTing = (UpperVar + LowerVar)/2;
     }
+
+    // now after 10 increments, we'll keep calculating the average and comparing it to the initial calculated average
       if (incrementer > 10){
        MeanTing = (UpperVar + LowerVar)/2;
-       if (MeanTing > InitialMeanTing+10 || MeanTing < InitialMeanTing-10){
-        ThisTrigger = true;
-        SlidingTrigger = true;
+
+    // if the MeanTing average is equal to the InitialMeanTing average (within a certain tolerance), then that means the
+    // user clicked the switch, not slid across it.  Otherwise, the user slid across. 
+       if (MeanTing > InitialMeanTing+10 || MeanTing < InitialMeanTing-10 || SlidingTrigger == true){
+
+
             var1 = MeanTing - InitialMeanTing;
             var2 = var1*180;
             var3 = var2/1023;
             LEDrate1 = (int)LEDrate + var3;  
 
+        // this trigger becomes true because now the variable LEDrate1 is the variable that holds the true value that corresponds
+        // to the position of the user's finger.  As long as this is happening, we must keep writing LEDrate1 to the LED driver.
+        // To do that, we would need this trigger to tell us that it's time to do that.
+        ThisTrigger = true;
+
+        // The fact that we're in this place of the code means that the user triggered the if statements checking if the user slid
+        // their finger.  With that being said, SlidingTrigger should be true at this point
+        SlidingTrigger = true;
+
+            
+        // this code makes sure that the variables don't contain values outside of their meant range.
             if (LEDrate1 > 180) {
               LEDrate1 = 180;
             }
@@ -301,16 +360,31 @@ void SoftPotLogic( void )
               LEDrate1 = 0;
             }
 
-        SoftPotToggle = true;
+        // this toggle variable corresponds to whether or not the lights are on.  If the lights are partially on, then technically
+        // they're still on.  Which means this variable would be true.  Here, if the user swipes
+        // the light switch all the way down to zero, this variable should become false
+        if (LEDrate1 == 0){
+        SoftPotToggle = false;
+        }
+        if (LEDrate1 != 0){
+          SoftPotToggle = true;
+        }
+
        }
        else {
+        // if you're at this point of the code, that means the if statements decided that the initial average is approximately equal to
+        // the actual average, which means it executed this part of the code, which means the user clicked, so the sliding trigger would be off
        SlidingTrigger = false;
       }
   } 
     
   }
 
-  } else if (SoftPotVal <= 1){
+
+   // this is the "else" part of the "big" if statement, you get here then the user stopped interacting with the switch.
+   // So at this point,  we there are 2 different things to be come based on whether or not the user clicked or swiped
+   // in that elapsed session.
+  } else if (SoftPotVal <= 5){
     UpperVar = 0;
     LowerVar = 1023;
     ThisTrigger = false;
@@ -318,15 +392,19 @@ void SoftPotLogic( void )
     InitialMeanTing = 0;
     MeanTing = 0;
 
-  
+  // if the user released before the completion of 10 cycles, we just assume that the user clicked.  Otherwise, we know
+  // that the user clicked if the SlidingTrigger is false
  if (!SlidingTrigger || (incrementer > 0 && incrementer < 9)){
     ThisTrigger = false;
+    // here you turn all the LEDs off if they're supposed to have been on (you'd know this based on the SoftPotToggle variable)
     if (SoftPotToggle){
       LEDrate = 0;
       LEDrate1 = 0;
+      // here you toggle this variable because now they've been turned on, so you have to update the variable
       SoftPotToggle = !SoftPotToggle;
       SlidingTrigger = true;
     }
+    // here you turn all the LEDs on if they're supposed to have been off.
     else if (!SoftPotToggle){
       LEDrate = 180;
       LEDrate1 = 180;
@@ -334,6 +412,8 @@ void SoftPotLogic( void )
       SlidingTrigger = true;
     }
    }
+   // reset the incrementer because the user released the switch, so we need the incrementer to be null in order to use it in the
+   // next session (if there is one)
        incrementer = 0;
   }
 
@@ -345,9 +425,7 @@ void SoftPotLogic( void )
     SoftPotValPrev = SoftPotVal;
     delay( SOFTPOT_DELAY );
     SoftPotVal = analogRead( SoftPotPin );
-
     SoftPotSlope1 = ( SoftPotVal - SoftPotValPrev ) / SOFTPOT_DELAY;
-
     // User could have possibly on pressed or sliding down
     if( abs(SoftPotSlope1) > 0.2 ){
       if (!SoftPotToggle){
@@ -358,7 +436,6 @@ void SoftPotLogic( void )
         rampDown();
          SoftPotToggle = !SoftPotToggle;
       }
-
       
     }
    
