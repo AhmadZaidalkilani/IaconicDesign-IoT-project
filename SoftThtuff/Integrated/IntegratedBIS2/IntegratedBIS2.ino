@@ -2,7 +2,7 @@
  * 
  * Contributers:  Mustafa Hammood   mustafa.sh@alumni.ubc.ca
  * 
- * Revision;      22 Nov 2016
+ * Revision;      26 Nov 2016
  * 
  * Bugs:          None
  * 
@@ -26,8 +26,7 @@ int BluetoothData;                    // the data given from Computer
 int ledpin=13;                        // Red LED on pin D13 for debugging --REMOVE
 
 
-
-
+// New SoftPot logic function
 int UpperVar = 0;
 int LowerVar = 1023;
 int LEDrate = 0;
@@ -40,11 +39,6 @@ int InitialMeanTing;
 int SoftPotValArray[] = {0,0,0,0,0,0,0,0,0,0};
 boolean SlidingTrigger;
 boolean ThisTrigger = false;
-
-
-
-
-
 
 
 // LOW = milliseconds, HIGH = microseconds, default is LOW
@@ -74,7 +68,7 @@ int intensity;
 // Analog signal filtered by an RC filter (0-5V) to drive power module intensity signal
 int intensityPower;
 int intensityPowerPWM;
-int intensityPowerPin = 2;
+int intensityPowerPin = 9;
 
 // SoftPot Sensor logic
 int SoftPotPin = A4;        // Bias input put (Analog 4)
@@ -98,6 +92,7 @@ void rampDown( void );      // Ramp down the LED bar intensity from 100% to 0%
 // Interface control and sensing logic
 void ButtonsLogic( void );  // Read buttons logic and control intensity
 void SoftPotLogic( void );  // Read SoftPot logic and control intensity\
+
 // Bluetooth communication control
 void BluetoothLogic( void );
 
@@ -138,39 +133,27 @@ void setup() {
 void loop() {
   
   BluetoothLogic();
-
-  //BacklightLogic();
-  
-  ButtonsLogic();
   SoftPotLogic();
-
   BulbIntensity();
 
-  /*Serial.print("LED Rate: ");
-  Serial.println( trueLEDrate );*/
 
- 
+  // Disconnected features
+  
+  //BacklightLogic();
+  //ButtonsLogic();
+
 }
 
 
 void BulbIntensity( void )
 {
   intensityPower = map( trueLEDrate, 0, 180, 20, 200 );
-
-  /*Serial.print("Power rate: ");
-  Serial.println( intensityPower );*/
-
-  /*
-  intensityPowerPWM = map( intensityPower, 0.2, 0, 2.5, 120 );
-  Serial.print("Power rate PWM: ");
-  Serial.println( intensityPowerPWM );
-  */
-
+  analogWrite( intensityPowerPin, intensityPower );
+  
   InstantCurrent = analogRead(CurrentSampler);
-
   Serial.print("InstantCurrent" );
   Serial.println(InstantCurrent);
-  analogWrite( 9, intensityPower );
+
 }
 
 void BacklightLogic( void )
@@ -243,6 +226,8 @@ void BluetoothLogic( void )
   delay(10);   // prepare for next data ...
 
 }
+
+
 // Function to execute the touch sensor functionality (sliding and clicking)
 void SoftPotLogic( void )
 {
@@ -442,6 +427,8 @@ void SoftPotLogic( void )
 }*/
 }
 
+
+// Old softPot logic function, unused at the moment
 void SoftPotLogicOkayish( void )
 {
 
@@ -486,7 +473,6 @@ void SoftPotLogicOkayish( void )
 
 void ButtonsLogic( void )
 {
-
   byte UpButton = B.checkButton(UpButtonPin);
   byte DownButton = B.checkButton(DownButtonPin);
   
@@ -532,6 +518,8 @@ void ButtonsLogic( void )
   }
   
 }
+
+
 void rampUp( void )
 {
   int rate = 0;
