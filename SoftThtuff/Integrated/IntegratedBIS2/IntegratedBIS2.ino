@@ -132,9 +132,9 @@ void setup() {
 // the loop function runs over and over again forever
 void loop() {
   
-  BluetoothLogic();
+  // BluetoothLogic();
   SoftPotLogic();
-  BulbIntensity();
+   //BulbIntensity();
 
 
   // Disconnected features
@@ -223,7 +223,7 @@ void BluetoothLogic( void )
       Genotronex.println("LED  On D13 Off ! ");
     }
   }
-  delay(10);   // prepare for next data ...
+   delay(10);   // prepare for next data ...
 
 }
 
@@ -425,6 +425,8 @@ void SoftPotLogic( void )
     }
    
 }*/
+   delay(10); 
+
 }
 
 
@@ -543,8 +545,7 @@ void rampDown( void )
   {
     analogWrite( LEDdriver, LEDrate );
     LEDrate--;
-    delay(rampDelay);
-
+    delay(rampDelay); 
   }
   
 }
