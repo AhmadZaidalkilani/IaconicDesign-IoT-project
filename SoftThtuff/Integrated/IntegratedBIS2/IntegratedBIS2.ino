@@ -383,7 +383,7 @@ void SoftPotLogic( void )
     ThisTrigger = false;
     // here you turn all the LEDs off if they're supposed to have been on (you'd know this based on the SoftPotToggle variable)
     if (SoftPotToggle){
-      LEDrate = 0;
+      rampDown();
       LEDrate1 = 0;
       // here you toggle this variable because now they've been turned on, so you have to update the variable
       SoftPotToggle = !SoftPotToggle;
@@ -391,7 +391,7 @@ void SoftPotLogic( void )
     }
     // here you turn all the LEDs on if they're supposed to have been off.
     else if (!SoftPotToggle){
-      LEDrate = 180;
+      rampUp();
       LEDrate1 = 180;
       SoftPotToggle = !SoftPotToggle;
       SlidingTrigger = true;
@@ -522,31 +522,29 @@ void ButtonsLogic( void )
 
 void rampUp( void )
 {
-  int rate = 0;
   int maximum = 180;
   int rampDelay = 5;
   
-  for( rate = 0; rate < maximum; rate++ )
+  while( LEDrate < maximum)
   {
-    analogWrite( LEDdriver, rate );
+    analogWrite( LEDdriver, LEDrate );
+    LEDrate++;
     delay(rampDelay);
   }
 
-  intensity = rate;
 }
 
 void rampDown( void )
 {
-  int rate = 180;
   int maximum = 0;
   int rampDelay = 5;
   
-  while( rate > maximum )
+  while( LEDrate > maximum )
   {
-    analogWrite( LEDdriver, rate );
-    rate--;
+    analogWrite( LEDdriver, LEDrate );
+    LEDrate--;
     delay(rampDelay);
-    Serial.println( "tss" );
+
   }
   
 }
